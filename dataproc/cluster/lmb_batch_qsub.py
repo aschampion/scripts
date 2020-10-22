@@ -40,11 +40,20 @@ if __name__ == "__main__":
     parser.add_argument('end', type=int)
     parser.add_argument('batch_size', type=int)
     parser.add_argument('--initial_jid', default=None)
-    parser.add_argument('command', nargs=argparse.REMAINDER)
+    parser.add_argument('command', nargs=argparse.REMAINDER, 
+        help="passed to qsub. Separate qsub options from the target command with '--'")
 
     args = parser.parse_args(sys.argv[1:])
 
     command = args.command
+    split_command = False
+    try:
+        split = command.index('--')
+        split_command = True
+        flags = command[:split]
+        command = command[(split + 1):]
+    except ValueError:
+        flags = []
     jids = args.initial_jid
 
     for a, b in inclusive_intervals(args.start, args.end, args.batch_size):
@@ -52,19 +61,23 @@ if __name__ == "__main__":
 
         # SGE will not dispatch task ID 0, so do it separately.
         if a == 0:
+            if not split_command:
+                print("Usage with task ID 0 requires that qsub options are separated from the target command with '--'.")
+                print("Example: lmb_batch_qsub 0 100 10 -l dedicated=12 -- solve_brain.py")
+                sys.exit(1)
             # Cannot set this with `qsub -v SGE_TASK_ID=0` because SGE will overwrite it with undefined.
-            single_jid = submit_job([], jids, ['setenv', 'SGE_TASK_ID', '0', '&&'] + command)
+            single_jid = submit_job(flags, jids, ['setenv', 'SGE_TASK_ID', '0', '&&'] + command)
             next_jids.append(single_jid)
             a += 1
 
         if a == b:
             continue
 
-        batch_jid = submit_job(['-t', '%i-%s' % (a, b)], jids, command)
+        batch_jid = submit_job(['-t', '%i-%s' % (a, b)] + flags, jids, command)
         next_jids.append(batch_jid)
 
         if any([j is None for j in next_jids]):
             print("Job ID not found. Not dispatching any more batches.")
-            break
+            sys.exit(1)
 
         jids = next_jids
