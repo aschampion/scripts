@@ -54,7 +54,7 @@ if __name__ == "__main__":
         command = command[(split + 1):]
     except ValueError:
         flags = []
-    jids = args.initial_jid
+    jids = [args.initial_jid] if args.initial_jid is not None else None
 
     for a, b in inclusive_intervals(args.start, args.end, args.batch_size):
         next_jids = []
