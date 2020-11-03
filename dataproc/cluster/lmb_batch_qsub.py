@@ -70,8 +70,8 @@ if __name__ == "__main__":
             next_jids.append(single_jid)
             a += 1
 
-        if a == b:
-            continue
+            if a == b:
+                continue
 
         batch_jid = submit_job(['-t', '%i-%s' % (a, b)] + flags, jids, command)
         next_jids.append(batch_jid)
